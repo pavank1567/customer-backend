@@ -23,12 +23,15 @@ public class AuthService {
 
     private final CustomerDao customerDao;
 
-    public AuthService(AuthenticationManager authenticationManager, CustomerDTOMapper customerDTOMapper, JWTUtil jwtUtil, AuthenticationDao authenticationDao, CustomerDao customerDao) {
+    private final OTPService otpService;
+
+    public AuthService(AuthenticationManager authenticationManager, CustomerDTOMapper customerDTOMapper, JWTUtil jwtUtil, AuthenticationDao authenticationDao, CustomerDao customerDao, OTPService otpService) {
         this.authenticationManager = authenticationManager;
         this.customerDTOMapper = customerDTOMapper;
         this.jwtUtil = jwtUtil;
         this.authenticationDao = authenticationDao;
         this.customerDao = customerDao;
+        this.otpService = otpService;
     }
 
 
@@ -46,6 +49,8 @@ public class AuthService {
     }
 
     public void storeOtp(String email, String otp) {
+
+        otpService.storeOtp(email,otp);
         boolean isCustomerPresent = customerDao.existsWithEmail(email);
 
         if(isCustomerPresent)
@@ -58,14 +63,16 @@ public class AuthService {
 
         OTPObject otpObject = authenticationDao.validateOTP(email, otp, ts).get();
 
+        if(otpService.validateOtp(email,otp,ts)) {
+            return true;
+        }
+
         if(otpObject.getEmail()!=null &&
                 otpObject.getEmail().equals(email) &&
                 otpObject.getOtp()!=null &&
                 otpObject.getOtp().equals(otp) ) {
 
-            if(otpObject.getExpTs()<ts)
-                return false;
-            return true;
+            return otpObject.getExpTs() >= ts;
         }
         return false;
     }
